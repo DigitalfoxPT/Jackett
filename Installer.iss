@@ -47,6 +47,7 @@ function PrepareToInstall(var NeedsRestart: Boolean): String;
 var
   ErrorCode: Integer;
 begin
+  Result := '';
   ShellExec('open', 'taskkill.exe', '/f /im JackettConsole.exe', '', SW_HIDE, ewNoWait, ErrorCode);
   ShellExec('open', 'taskkill.exe', '/f /im JackettService.exe', '', SW_HIDE, ewNoWait, ErrorCode);
 end;
@@ -59,6 +60,6 @@ Filename: "{commonappdata}\Jackett\JackettConsole.exe"; Parameters: "--Start"; F
 Filename: "{#MyAppWebUI}"; Description: "Open {#MyAppName} Web UI"; Flags: shellexec nowait postinstall skipifsilent;
 
 [UninstallRun]
-Filename: "{commonappdata}\Jackett\JackettConsole.exe"; Parameters: "--Uninstall"; Flags: waituntilterminated skipifdoesntexist runhidden;
-Filename: "{sys}\taskkill.exe"; Parameters: "/f /im JackettConsole.exe"; Flags: waituntilterminated skipifdoesntexist runhidden;
-Filename: "{sys}\taskkill.exe"; Parameters: "/f /im JackettService.exe"; Flags: waituntilterminated skipifdoesntexist runhidden;
+Filename: "{commonappdata}\Jackett\JackettConsole.exe"; Parameters: "--Uninstall"; Flags: waituntilterminated skipifdoesntexist runhidden; RunOnceId: "UninstallJackettService"
+Filename: "{sys}\taskkill.exe"; Parameters: "/f /im JackettConsole.exe"; Flags: waituntilterminated skipifdoesntexist runhidden; RunOnceId: "StopJackettConsole"
+Filename: "{sys}\taskkill.exe"; Parameters: "/f /im JackettService.exe"; Flags: waituntilterminated skipifdoesntexist runhidden; RunOnceId: "StopJackettService"
