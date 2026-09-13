@@ -85,6 +85,77 @@
         }
     }
 
+    function createWhiteTransparentFavicon() {
+        var source = new Image();
+
+        source.onload = function () {
+            try {
+                var size = 64;
+                var padding = 4;
+                var canvas = document.createElement('canvas');
+                canvas.width = size;
+                canvas.height = size;
+
+                var context = canvas.getContext('2d');
+                if (!context) {
+                    return;
+                }
+
+                var availableSize = size - (padding * 2);
+                var scale = Math.min(availableSize / source.naturalWidth, availableSize / source.naturalHeight);
+                var width = Math.max(1, Math.round(source.naturalWidth * scale));
+                var height = Math.max(1, Math.round(source.naturalHeight * scale));
+                var x = Math.round((size - width) / 2);
+                var y = Math.round((size - height) / 2);
+
+                context.clearRect(0, 0, size, size);
+                context.drawImage(source, x, y, width, height);
+
+                var pixels = context.getImageData(0, 0, size, size);
+                var data = pixels.data;
+
+                // Convert the existing black-on-white Jackett mark into the same
+                // jacket silhouette in white, with the white background removed.
+                for (var i = 0; i < data.length; i += 4) {
+                    var sourceAlpha = data[i + 3] / 255;
+                    var luminance = (0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]) / 255;
+                    var alpha = Math.round(255 * sourceAlpha * (1 - luminance));
+
+                    data[i] = 255;
+                    data[i + 1] = 255;
+                    data[i + 2] = 255;
+                    data[i + 3] = alpha < 6 ? 0 : alpha;
+                }
+
+                context.putImageData(pixels, 0, 0);
+                var faviconUrl = canvas.toDataURL('image/png');
+                var links = document.querySelectorAll('link[rel~="icon"]');
+
+                if (!links.length) {
+                    var link = document.createElement('link');
+                    link.rel = 'icon';
+                    document.head.appendChild(link);
+                    links = [link];
+                }
+
+                Array.prototype.forEach.call(links, function (link) {
+                    link.type = 'image/png';
+                    link.sizes = '64x64';
+                    link.href = faviconUrl;
+                });
+            } catch (e) {
+                // Keep the packaged favicon as a harmless fallback if canvas is unavailable.
+            }
+        };
+
+        source.src = '../jacket_medium.png?changed=2026091303';
+    }
+
+    function initializeThemeUi() {
+        createSelector();
+        createWhiteTransparentFavicon();
+    }
+
     var preference = readPreference();
     applyTheme(preference);
 
@@ -103,8 +174,8 @@
     }
 
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', createSelector);
+        document.addEventListener('DOMContentLoaded', initializeThemeUi);
     } else {
-        createSelector();
+        initializeThemeUi();
     }
 })();
