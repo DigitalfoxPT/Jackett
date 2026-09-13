@@ -9,9 +9,9 @@ using Jackett.Common.Models.Config;
 using Jackett.Common.Services;
 using Jackett.Common.Services.Interfaces;
 using Jackett.Common.Utils;
-using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NLog;
 using NLog.Web;
@@ -166,18 +166,22 @@ namespace Jackett.Server
             }
         }
 
-        public static IWebHostBuilder CreateWebHostBuilder(string[] args, string[] urls, string contentRoot) =>
-            WebHost.CreateDefaultBuilder(args)
-                .UseContentRoot(contentRoot)
-                .UseWebRoot(contentRoot)
-                .UseUrls(urls)
-                .PreferHostingUrls(true)
-                .UseConfiguration(Configuration)
-                .UseStartup<Startup>()
-                .ConfigureLogging(logging =>
+        public static IHostBuilder CreateWebHostBuilder(string[] args, string[] urls, string contentRoot) =>
+            Host.CreateDefaultBuilder(args)
+                .ConfigureWebHostDefaults(webBuilder =>
                 {
-                    logging.ClearProviders();
-                    logging.SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Trace);
+                    webBuilder
+                        .UseContentRoot(contentRoot)
+                        .UseWebRoot(contentRoot)
+                        .UseUrls(urls)
+                        .PreferHostingUrls(true)
+                        .UseConfiguration(Configuration)
+                        .UseStartup<Startup>()
+                        .ConfigureLogging(logging =>
+                        {
+                            logging.ClearProviders();
+                            logging.SetMinimumLevel(Microsoft.Extensions.Logging.LogLevel.Trace);
+                        });
                 })
                 .UseNLog();
     }
