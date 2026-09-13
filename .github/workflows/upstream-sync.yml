@@ -66,8 +66,8 @@ jobs:
         if: steps.merge.outputs.changed == 'true'
         shell: pwsh
         run: |
-          dotnet restore src/Jackett.sln -r $env:RUNTIME
-          dotnet build src/Jackett.sln -c Release -r $env:RUNTIME --no-restore
+          dotnet restore src/Jackett.sln
+          dotnet build src/Jackett.sln -c Release --no-restore
           dotnet test src/Jackett.Test/Jackett.Test.csproj -c Release --no-build --framework net10.0-windows
 
       - name: Push synchronized master
