@@ -1,0 +1,116 @@
+name: Windows x64 Build
+
+on:
+  push:
+    branches:
+      - master
+      - windows-x64-dotnet10
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_VERSION: 10.0.x
+  CONFIGURATION: Release
+  RUNTIME: win-x64
+
+jobs:
+  build:
+    name: Build, test and package
+    runs-on: windows-2025
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Set build version
+        id: version
+        shell: pwsh
+        run: |
+          $version = "1.0.${{ github.run_number }}"
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "BUILD_VERSION=$version" >> $env:GITHUB_ENV
+          Write-Host "Build version: $version"
+
+      - name: Restore
+        shell: pwsh
+        run: dotnet restore src/Jackett.sln -r $env:RUNTIME
+
+      - name: Build solution
+        shell: pwsh
+        run: dotnet build src/Jackett.sln -c $env:CONFIGURATION -r $env:RUNTIME --no-restore /p:Version=$env:BUILD_VERSION /p:AssemblyVersion=$env:BUILD_VERSION /p:FileVersion=$env:BUILD_VERSION /p:InformationalVersion=$env:BUILD_VERSION
+
+      - name: Unit tests
+        shell: pwsh
+        run: dotnet test src/Jackett.Test/Jackett.Test.csproj -c $env:CONFIGURATION --no-build --framework net10.0-windows
+
+      - name: Publish server
+        shell: pwsh
+        run: dotnet publish src/Jackett.Server/Jackett.Server.csproj -c $env:CONFIGURATION -r $env:RUNTIME --self-contained true --no-build -o build/Jackett.Server /p:Version=$env:BUILD_VERSION /p:AssemblyVersion=$env:BUILD_VERSION /p:FileVersion=$env:BUILD_VERSION /p:InformationalVersion=$env:BUILD_VERSION
+
+      - name: Publish updater
+        shell: pwsh
+        run: dotnet publish src/Jackett.Updater/Jackett.Updater.csproj -c $env:CONFIGURATION -r $env:RUNTIME --self-contained true --no-build -o build/Jackett.Updater /p:Version=$env:BUILD_VERSION /p:AssemblyVersion=$env:BUILD_VERSION /p:FileVersion=$env:BUILD_VERSION /p:InformationalVersion=$env:BUILD_VERSION
+
+      - name: Publish Windows service
+        shell: pwsh
+        run: dotnet publish src/Jackett.Service/Jackett.Service.csproj -c $env:CONFIGURATION -r $env:RUNTIME --self-contained true --no-build -o build/Jackett.Service /p:Version=$env:BUILD_VERSION /p:AssemblyVersion=$env:BUILD_VERSION /p:FileVersion=$env:BUILD_VERSION /p:InformationalVersion=$env:BUILD_VERSION
+
+      - name: Assemble Windows package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path build/Jackett | Out-Null
+          Copy-Item build/Jackett.Server/* build/Jackett -Recurse -Force
+          Copy-Item build/Jackett.Updater/JackettUpdater* build/Jackett -Force
+          Copy-Item build/Jackett.Service/JackettService* build/Jackett -Force
+          Copy-Item jackett_launcher.bat build/Jackett -Force
+
+          if (Test-Path build/Jackett/JackettTray.exe) {
+            throw "JackettTray.exe must not be present in the Windows-only fork package."
+          }
+
+      - name: Create binaries ZIP
+        shell: pwsh
+        run: |
+          Compress-Archive -Path build/Jackett -DestinationPath build/Jackett.Binaries.Windows.zip -CompressionLevel Optimal -Force
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --no-progress -y
+
+      - name: Create installer
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            throw "Inno Setup compiler not found at $iscc"
+          }
+
+          & $iscc "Installer.iss" "/Obuild" "/DMyAppVersion=$env:BUILD_VERSION" "/DMySourceFolder=$pwd\build\Jackett" "/DMyOutputFilename=Jackett.Installer.Windows"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Jackett-Windows-x64-${{ steps.version.outputs.version }}
+          if-no-files-found: error
+          path: |
+            build/Jackett.Binaries.Windows.zip
+            build/Jackett.Installer.Windows.exe
+
+      - name: Create GitHub release
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "v$env:BUILD_VERSION"
+          gh release create $tag build/Jackett.Binaries.Windows.zip build/Jackett.Installer.Windows.exe --target "${{ github.sha }}" --title $tag --notes "Windows x64 / .NET 10 automated build."
