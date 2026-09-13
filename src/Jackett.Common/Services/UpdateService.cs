@@ -33,7 +33,7 @@ namespace Jackett.Common.Services
         private readonly IServiceConfigService windowsService;
         private readonly IFilePermissionService filePermissionService;
         private readonly ServerConfig serverConfig;
-        private bool forceUpdateCheck; // false by default
+        private bool forceUpdateCheck;
         private Variants.JackettVariant variant;
 
         private static readonly Regex _VersionRegex = new Regex(@"v(?<major>\d+)\.(?<minor>\d+)\.(?<build>\d+)", RegexOptions.Compiled);
@@ -48,10 +48,7 @@ namespace Jackett.Common.Services
             filePermissionService = fps;
 
             variant = new Variants().GetVariant();
-
-            // Increase the HTTP client timeout just for update download (not other requests)
-            // The update is heavy and can take longer time for slow connections. Fix #12711
-            client.SetTimeout(300); // 5 minutes
+            client.SetTimeout(300);
         }
 
         public void StartUpdateChecker() => Task.Factory.StartNew(UpdateWorkerThread);
@@ -64,13 +61,13 @@ namespace Jackett.Common.Services
 
         private async void UpdateWorkerThread()
         {
-            var delayHours = 1; // first check after 1 hour (for users not running jackett 24/7)
+            var delayHours = 1;
             while (true)
             {
                 locker.WaitOne((int)TimeSpan.FromHours(delayHours).TotalMilliseconds);
                 locker.Reset();
                 await CheckForUpdates();
-                delayHours = 24; // following checks only once/24 hours
+                delayHours = 24;
             }
         }
 
@@ -88,7 +85,7 @@ namespace Jackett.Common.Services
                 logger.Info("Skipping update check as it is disabled.");
                 return;
             }
-            forceUpdateCheck = false; // Used when updates are disabled and the user click update button
+            forceUpdateCheck = false;
             if (Debugger.IsAttached)
             {
                 logger.Info("Skipping checking for new releases as the debugger is attached.");
@@ -115,7 +112,7 @@ namespace Jackett.Common.Services
             {
                 var response = await client.GetResultAsync(new WebRequest
                 {
-                    Url = "https://api.github.com/repos/Jackett/Jackett/releases",
+                    Url = "https://api.github.com/repos/DigitalfoxPT/Jackett/releases",
                     Encoding = Encoding.UTF8,
                     EmulateBrowser = false
                 });
@@ -160,7 +157,6 @@ namespace Jackett.Common.Services
                         {
                             var tempDir = await DownloadRelease(latestRelease.Assets, isWindows, latestRelease.Name);
 
-                            // Copy updater
                             var installDir = EnvironmentUtil.JackettInstallationPath();
                             var updaterPath = GetUpdaterPath(tempDir);
 
@@ -234,7 +230,6 @@ namespace Jackett.Common.Services
 
         public void CheckUpdaterLock()
         {
-            // check .lock file to detect errors in the update process
             var lockFilePath = Path.Combine(EnvironmentUtil.JackettInstallationPath(), ".lock");
             if (File.Exists(lockFilePath))
             {
@@ -301,8 +296,6 @@ namespace Jackett.Common.Services
                 || variant == Variants.JackettVariant.CoreLinuxMuslAmdx64 || variant == Variants.JackettVariant.CoreLinuxMuslArm32
                 || variant == Variants.JackettVariant.CoreLinuxMuslArm64)
                 {
-                    // When the files get extracted, the execute permission for jackett and JackettUpdater don't get carried across
-
                     var jackettPath = tempDir + "/Jackett/jackett";
                     filePermissionService.MakeFileExecutable(jackettPath);
 
@@ -350,10 +343,8 @@ namespace Jackett.Common.Services
                 CreateNoWindow = true
             };
 
-            // Note: add a leading space to the --Args argument to avoid parsing as arguments
             if (variant == Variants.JackettVariant.Mono)
             {
-                // Wrap mono
                 args = Path.GetFileName(EnvironmentUtil.JackettExecutablePath()) + " " + args;
 
                 startInfo.Arguments = $"{Path.Combine(updaterExePath)} --Path \"{installLocation}\" --Type \"{appType}\" --Args \" {args}\"";
@@ -385,7 +376,6 @@ namespace Jackett.Common.Services
                 startInfo.Arguments += " --StartTray";
             }
 
-            // create .lock file to detect errors in the update process
             var lockFilePath = Path.Combine(installLocation, ".lock");
             if (!File.Exists(lockFilePath))
             {
