@@ -1,5 +1,4 @@
 #define MyAppName "Jackett"
-#define MyAppPublisher "DigitalfoxPT"
 #define MyAppURL "https://github.com/DigitalfoxPT/Jackett"
 #define MyAppExeName "JackettConsole.exe"
 #define MyAppWebUI "http://127.0.0.1:9117/UI/Dashboard"
@@ -8,8 +7,6 @@
 AppId={{C2A9FC00-AA48-4F17-9A72-62FBCEE2785B}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
-AppPublisher={#MyAppPublisher}
-AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
 DefaultDirName={commonappdata}\{#MyAppName}
