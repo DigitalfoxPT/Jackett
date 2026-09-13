@@ -24,11 +24,10 @@ namespace Jackett.Common.Utils
             {
                 Layout = "${longdate} ${level} ${message}${onexception:inner=${newline}${newline}[v${assembly-version}] ${exception:format=ToString}${newline}}",
                 FileName = Path.Combine(settings.DataFolder, logFileName),
-                ArchiveFileName = Path.Combine(settings.DataFolder, logFileName + ".{#####}.txt"),
                 ArchiveAboveSize = 2097152, // 2 MB
+                ArchiveSuffixFormat = ".{0:00000}",
                 MaxArchiveFiles = 5,
-                KeepFileOpen = false,
-                ArchiveNumbering = ArchiveNumberingMode.DateAndSequence
+                KeepFileOpen = false
             };
             logConfig.AddTarget("file", logFile);
 
