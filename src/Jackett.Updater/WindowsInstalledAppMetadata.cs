@@ -2,7 +2,6 @@ using System;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
-using Jackett.Common.Utils;
 using Microsoft.Win32;
 
 namespace Jackett.Updater
@@ -21,19 +20,13 @@ namespace Jackett.Updater
         {
             try
             {
-                var consolePath = Path.Combine(EnvironmentUtil.JackettInstallationPath(), "JackettConsole.exe");
-                if (!File.Exists(consolePath))
+                // The current updater executable runs from the extracted update directory,
+                // so use Inno Setup's InstallLocation instead of the updater's own path.
+                if (TrySynchronizeRegistryView(RegistryView.Registry64))
                     return;
 
-                var version = FileVersionInfo.GetVersionInfo(consolePath).FileVersion;
-                if (string.IsNullOrWhiteSpace(version))
-                    return;
-
-                var updated = TryUpdateRegistryView(RegistryView.Registry64, version);
-                updated |= TryUpdateRegistryView(RegistryView.Registry32, version);
-
-                if (updated)
-                    Program.logger?.Info($"Updated Windows installed-app DisplayVersion to {version}");
+                // Fallback for installations created by older 32-bit installer builds.
+                TrySynchronizeRegistryView(RegistryView.Registry32);
             }
             catch (Exception ex)
             {
@@ -42,7 +35,7 @@ namespace Jackett.Updater
             }
         }
 
-        private static bool TryUpdateRegistryView(RegistryView view, string version)
+        private static bool TrySynchronizeRegistryView(RegistryView view)
         {
             try
             {
@@ -51,10 +44,23 @@ namespace Jackett.Updater
                 if (uninstallKey == null)
                     return false;
 
+                var installLocation = uninstallKey.GetValue("InstallLocation") as string;
+                if (string.IsNullOrWhiteSpace(installLocation))
+                    return true;
+
+                var consolePath = Path.Combine(installLocation, "JackettConsole.exe");
+                if (!File.Exists(consolePath))
+                    return true;
+
+                var version = FileVersionInfo.GetVersionInfo(consolePath).FileVersion;
+                if (string.IsNullOrWhiteSpace(version))
+                    return true;
+
                 var currentVersion = uninstallKey.GetValue("DisplayVersion") as string;
                 if (!string.Equals(currentVersion, version, StringComparison.Ordinal))
                     uninstallKey.SetValue("DisplayVersion", version, RegistryValueKind.String);
 
+                Program.logger?.Info($"Synchronized Windows installed-app DisplayVersion to {version}");
                 return true;
             }
             catch (UnauthorizedAccessException)
