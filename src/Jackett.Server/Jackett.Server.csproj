@@ -25,7 +25,6 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="10.0.12" />
-    <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.12" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.12" />
     <PackageReference Include="Autofac" Version="9.3.2" />
     <PackageReference Include="Autofac.Extensions.DependencyInjection" Version="11.0.2" />
@@ -33,7 +32,6 @@
     <PackageReference Include="NLog" Version="6.2.0" />
     <PackageReference Include="NLog.Web.AspNetCore" Version="6.2.0" />
     <PackageReference Include="System.ServiceProcess.ServiceController" Version="10.0.12" />
-    <PackageReference Include="System.Text.Encoding.CodePages" Version="10.0.12" />
   </ItemGroup>
 
   <ItemGroup>
