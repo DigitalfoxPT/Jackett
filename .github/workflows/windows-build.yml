@@ -12,6 +12,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: windows-x64-build-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   DOTNET_VERSION: 10.0.x
   CONFIGURATION: Release
@@ -154,3 +158,6 @@ jobs:
             gh release delete v1.0.14 --cleanup-tag --yes
             if ($LASTEXITCODE -ne 0) { throw "Failed to remove legacy release v1.0.14." }
           }
+
+          # A missing legacy release is expected and must not make the step fail.
+          exit 0
