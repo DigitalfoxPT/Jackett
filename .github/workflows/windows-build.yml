@@ -28,10 +28,10 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Setup .NET 10
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
@@ -118,7 +118,7 @@ jobs:
           & $iscc "Installer.iss" "/Obuild" "/DMyAppVersion=$env:BUILD_VERSION" "/DMySourceFolder=$pwd\build\Jackett" "/DMyOutputFilename=Jackett.Installer.Windows"
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: Jackett-Windows-x64-${{ steps.version.outputs.version }}
           if-no-files-found: error
