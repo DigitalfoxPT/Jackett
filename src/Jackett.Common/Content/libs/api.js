@@ -87,3 +87,16 @@ var api = {
 	    });
 	}
 }
+
+;(function loadJackettTheme() {
+    var css = document.createElement('link');
+    css.rel = 'stylesheet';
+    css.type = 'text/css';
+    css.href = '../theme.css?changed=20260913';
+    document.head.appendChild(css);
+
+    var script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.src = '../theme.js?changed=20260913';
+    document.head.appendChild(script);
+})();
