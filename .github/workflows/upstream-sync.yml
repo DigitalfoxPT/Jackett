@@ -11,7 +11,6 @@ permissions:
 
 env:
   DOTNET_VERSION: 10.0.x
-  RUNTIME: win-x64
 
 jobs:
   sync:
@@ -20,7 +19,7 @@ jobs:
 
     steps:
       - name: Checkout fork
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: master
           fetch-depth: 0
@@ -63,14 +62,33 @@ jobs:
           "changed=true" >> $env:GITHUB_OUTPUT
 
       - name: Validate synchronized source
+        id: validate
         if: steps.merge.outputs.changed == 'true'
+        continue-on-error: true
         shell: pwsh
         run: |
           dotnet restore src/Jackett.sln
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
           dotnet build src/Jackett.sln -c Release --no-restore
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
           dotnet test src/Jackett.Test/Jackett.Test.csproj -c Release --no-build --framework net10.0-windows
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Report validation failure
+        if: steps.merge.outputs.changed == 'true' && steps.validate.outcome == 'failure'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $existing = gh issue list --state open --search 'Daily upstream validation failed in:title' --json number --jq '.[0].number'
+          if (-not $existing) {
+            gh issue create --title "Daily upstream validation failed" --body "The latest Jackett/Jackett master merged locally, but the Windows x64 / .NET 10 build or tests failed. The merge was not pushed to master. Review this workflow run before the next synchronization."
+          }
+          throw "Upstream validation failed. Master was not changed."
 
       - name: Push synchronized master
-        if: steps.merge.outputs.changed == 'true'
+        if: steps.merge.outputs.changed == 'true' && steps.validate.outcome == 'success'
         shell: pwsh
         run: git push origin master
