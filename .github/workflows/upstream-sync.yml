@@ -95,7 +95,7 @@ jobs:
         run: git push origin master
 
       - name: Ensure latest upstream release is built
-        if: steps.merge.outputs.changed == 'false'
+        if: steps.merge.outputs.changed == 'false' || (steps.merge.outputs.changed == 'true' && steps.validate.outcome == 'success')
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
