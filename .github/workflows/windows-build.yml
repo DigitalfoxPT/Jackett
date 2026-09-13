@@ -43,11 +43,11 @@ jobs:
 
       - name: Restore
         shell: pwsh
-        run: dotnet restore src/Jackett.sln -r $env:RUNTIME
+        run: dotnet restore src/Jackett.sln
 
       - name: Build solution
         shell: pwsh
-        run: dotnet build src/Jackett.sln -c $env:CONFIGURATION -r $env:RUNTIME --no-restore /p:Version=$env:BUILD_VERSION /p:AssemblyVersion=$env:BUILD_VERSION /p:FileVersion=$env:BUILD_VERSION /p:InformationalVersion=$env:BUILD_VERSION
+        run: dotnet build src/Jackett.sln -c $env:CONFIGURATION --no-restore /p:Version=$env:BUILD_VERSION /p:AssemblyVersion=$env:BUILD_VERSION /p:FileVersion=$env:BUILD_VERSION /p:InformationalVersion=$env:BUILD_VERSION
 
       - name: Unit tests
         shell: pwsh
