@@ -41,9 +41,9 @@ Name: "{commonappdata}\Jackett"; Permissions: everyone-modify
 Source: "{#MySourceFolder}\*"; DestDir: "{commonappdata}\Jackett"; Flags: ignoreversion recursesubdirs createallsubdirs; Permissions: everyone-modify
 
 [Icons]
-Name: "{group}\{#MyAppName} Web UI"; Filename: "{#MyAppWebUI}"
+Name: "{group}\{#MyAppName} Web UI"; Filename: "{#MyAppWebUI}"; IconFilename: "{commonappdata}\Jackett\{#MyAppExeName}"; IconIndex: 0
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
-Name: "{commondesktop}\{#MyAppName}"; Filename: "{#MyAppWebUI}"; Tasks: desktopicon
+Name: "{commondesktop}\{#MyAppName}"; Filename: "{#MyAppWebUI}"; IconFilename: "{commonappdata}\Jackett\{#MyAppExeName}"; IconIndex: 0; Tasks: desktopicon
 
 [Code]
 function PrepareToInstall(var NeedsRestart: Boolean): String;
