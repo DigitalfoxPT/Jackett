@@ -6,6 +6,7 @@ permissions:
   contents: read
 jobs:
   publish:
+    if: github.repository == 'Jackett/Jackett'
     runs-on: ubuntu-latest
     steps:
       - uses: vedantmgoyal9/winget-releaser@main
