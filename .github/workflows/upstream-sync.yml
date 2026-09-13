@@ -20,13 +20,13 @@ jobs:
 
     steps:
       - name: Checkout fork
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: master
           fetch-depth: 0
 
       - name: Setup .NET 10
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
