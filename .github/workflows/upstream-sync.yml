@@ -16,7 +16,7 @@ env:
 jobs:
   sync:
     name: Merge Jackett upstream
-    runs-on: windows-2025
+    runs-on: windows-2025-vs2026
 
     steps:
       - name: Checkout fork
