@@ -8,6 +8,7 @@ on:
 permissions:
   contents: write
   issues: write
+  actions: write
 
 env:
   DOTNET_VERSION: 10.0.x
@@ -92,3 +93,27 @@ jobs:
         if: steps.merge.outputs.changed == 'true' && steps.validate.outcome == 'success'
         shell: pwsh
         run: git push origin master
+
+      - name: Ensure latest upstream release is built
+        if: steps.merge.outputs.changed == 'false'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = gh api repos/Jackett/Jackett/releases/latest --jq .tag_name
+          if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($tag)) {
+            throw "Unable to determine the latest Jackett upstream release."
+          }
+
+          $tag = $tag.Trim()
+          gh release view $tag *> $null
+          if ($LASTEXITCODE -eq 0) {
+            Write-Host "Fork already has release $tag."
+            exit 0
+          }
+
+          Write-Host "Upstream release $tag is not present in the fork. Triggering Windows build."
+          gh workflow run windows-build.yml --ref master
+          if ($LASTEXITCODE -ne 0) {
+            throw "Failed to dispatch Windows build for $tag."
+          }
