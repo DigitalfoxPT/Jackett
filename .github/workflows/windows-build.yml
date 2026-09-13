@@ -126,7 +126,7 @@ jobs:
             build/Jackett.Binaries.Windows.zip
             build/Jackett.Installer.Windows.exe
 
-      - name: Create or refresh GitHub release
+      - name: Recreate GitHub release
         if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         shell: pwsh
         env:
@@ -135,22 +135,25 @@ jobs:
           $tag = $env:UPSTREAM_TAG
           $notes = "Windows x64 / .NET 10 custom build based on Jackett upstream $tag."
 
+          # Recreate the release instead of refreshing it so GitHub's published time
+          # always reflects the most recent successful Windows build.
           gh release view $tag *> $null
           if ($LASTEXITCODE -eq 0) {
-            git tag -f $tag "${{ github.sha }}"
-            git push origin "refs/tags/$tag" --force
-            if ($LASTEXITCODE -ne 0) { throw "Failed to update tag $tag." }
-
-            gh release upload $tag build/Jackett.Binaries.Windows.zip build/Jackett.Installer.Windows.exe --clobber
-            if ($LASTEXITCODE -ne 0) { throw "Failed to refresh release assets for $tag." }
-
-            gh release edit $tag --title $tag --notes $notes
-            if ($LASTEXITCODE -ne 0) { throw "Failed to refresh release metadata for $tag." }
+            gh release delete $tag --cleanup-tag --yes
+            if ($LASTEXITCODE -ne 0) { throw "Failed to remove existing release $tag." }
           }
           else {
-            gh release create $tag build/Jackett.Binaries.Windows.zip build/Jackett.Installer.Windows.exe --target "${{ github.sha }}" --title $tag --notes $notes
-            if ($LASTEXITCODE -ne 0) { throw "Failed to create release $tag." }
+            # A tag can exist without a release. Remove it as well so the new release
+            # always points at the commit that produced the current binaries.
+            $remoteTag = git ls-remote --tags origin "refs/tags/$tag"
+            if (-not [string]::IsNullOrWhiteSpace($remoteTag)) {
+              git push origin ":refs/tags/$tag"
+              if ($LASTEXITCODE -ne 0) { throw "Failed to remove existing tag $tag." }
+            }
           }
+
+          gh release create $tag build/Jackett.Binaries.Windows.zip build/Jackett.Installer.Windows.exe --target "${{ github.sha }}" --title $tag --notes $notes
+          if ($LASTEXITCODE -ne 0) { throw "Failed to create release $tag." }
 
           # Remove the single legacy release created by the old local 1.0.x numbering scheme.
           gh release view v1.0.14 *> $null
