@@ -92,11 +92,11 @@ var api = {
     var css = document.createElement('link');
     css.rel = 'stylesheet';
     css.type = 'text/css';
-    css.href = '../theme.css?changed=20260913';
+    css.href = '../theme.css?changed=2026091302';
     document.head.appendChild(css);
 
     var script = document.createElement('script');
     script.type = 'text/javascript';
-    script.src = '../theme.js?changed=20260913';
+    script.src = '../theme.js?changed=2026091302';
     document.head.appendChild(script);
 })();

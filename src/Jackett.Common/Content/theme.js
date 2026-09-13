@@ -49,6 +49,7 @@
         select.id = 'jackett-theme-select';
         select.className = 'form-control input-sm';
         select.title = 'Theme';
+        select.setAttribute('aria-label', 'Theme');
 
         [['system', 'System'], ['light', 'Light'], ['dark', 'Dark']].forEach(function (item) {
             var option = document.createElement('option');
@@ -65,14 +66,22 @@
         container.appendChild(label);
         container.appendChild(select);
 
+        var page = document.getElementById('page');
         var apiKey = document.querySelector('.jackett-apikey');
-        if (apiKey && apiKey.parentNode) {
-            apiKey.parentNode.insertBefore(container, apiKey);
-        } else {
-            var page = document.getElementById('page');
-            if (page) {
-                page.insertBefore(container, page.firstChild);
+
+        if (page && apiKey) {
+            var headerTools = document.querySelector('.jackett-header-tools');
+            if (!headerTools) {
+                headerTools = document.createElement('div');
+                headerTools.className = 'jackett-header-tools';
+                page.insertBefore(headerTools, apiKey);
             }
+
+            apiKey.classList.remove('pull-right');
+            headerTools.appendChild(container);
+            headerTools.appendChild(apiKey);
+        } else if (page) {
+            page.insertBefore(container, page.firstChild);
         }
     }
 
