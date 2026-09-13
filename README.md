@@ -23,9 +23,10 @@ This fork must preserve the following behavior unless the repository owner expli
 - The web dashboard supports **System / Light / Dark** themes.
 - The selected UI theme is stored locally in the browser.
 - Automatic application updates are obtained from **`DigitalfoxPT/Jackett`**, not directly from `Jackett/Jackett`.
-- The fork synchronizes with the original `Jackett/Jackett` repository automatically once per day.
+- The fork performs a **full source synchronization once per day** and checks for a **new stable upstream release every 6 hours**.
 - GitHub Releases in this fork use **exactly the same version number as the latest stable upstream Jackett release**.
-- The fork should stay as close to upstream as practical so daily synchronization remains maintainable.
+- The installed Jackett checks this fork for application updates every **6 hours**, after an initial check 1 hour after startup.
+- The fork should stay as close to upstream as practical so synchronization remains maintainable.
 
 ## Upstream and fork relationship
 
@@ -70,6 +71,9 @@ When updating a dependency or modernizing code:
 | System tray | Removed from shipped package |
 | Web UI themes | System / Light / Dark |
 | Updater source | `DigitalfoxPT/Jackett` releases |
+| Upstream release check | Every 6 hours |
+| Full upstream source sync | Once per day |
+| Installed app update check | 1 hour after startup, then every 6 hours |
 
 The build currently publishes these executables/components:
 
@@ -186,32 +190,41 @@ Checkout
   -> create Jackett.Binaries.Windows.zip
   -> build Inno Setup installer
   -> upload GitHub Actions artifact
-  -> recreate the GitHub Release on master pushes
+  -> recreate the GitHub Release on master push or workflow_dispatch
 ```
 
 The workflow uses `concurrency` with `cancel-in-progress: true` so multiple builds of the same ref do not simultaneously attempt to replace the same release.
 
 ### `.github/workflows/upstream-sync.yml`
 
-This workflow synchronizes the fork with `Jackett/Jackett` once per day.
+This workflow combines a lightweight stable-release check with a daily full source synchronization.
 
 Current schedule:
 
 ```text
-03:17 UTC every day
+00:17 UTC - full source synchronization and release check
+06:17 UTC - lightweight release check
+12:17 UTC - lightweight release check
+18:17 UTC - lightweight release check
 ```
 
-It can also be launched manually with `workflow_dispatch`.
+It can also be launched manually with `workflow_dispatch`; a manual run performs a full source synchronization.
 
-The workflow:
+The workflow first queries the latest stable `Jackett/Jackett` release. If the matching release already exists in this fork and the run is one of the 6-hour lightweight checks, the workflow stops without checkout, .NET setup, compilation or tests.
+
+A full daily sync, or any 6-hour check that detects a missing upstream release, performs this sequence:
 
 1. checks out the fork `master` with full history;
 2. adds `https://github.com/Jackett/Jackett.git` as the `upstream` remote;
 3. fetches upstream `master` and tags;
 4. checks whether new upstream commits exist;
-5. merges `upstream/master` locally;
-6. validates the merged source with .NET 10 restore, build and unit tests;
-7. pushes the merge to the fork only if validation succeeds.
+5. merges `upstream/master` locally when required;
+6. installs .NET 10 only when source changes actually need validation;
+7. validates changed source with restore, build and unit tests;
+8. pushes the merge only if validation succeeds;
+9. if the latest stable upstream release is missing from this fork, dispatches `windows-build.yml` explicitly.
+
+The explicit workflow dispatch after synchronization is important. Do not rely on a push made with the default `GITHUB_TOKEN` to start another workflow.
 
 If the merge fails, it aborts the merge and creates a GitHub issue titled:
 
@@ -227,11 +240,11 @@ Daily upstream validation failed
 
 This safety mechanism is important. Do not change it to blindly push upstream changes before validation.
 
-### New upstream release without new source merge
+### New upstream release detection
 
-The daily sync also checks whether the latest official upstream release exists in this fork.
+A new official stable release is detected within at most roughly 6 hours by the scheduled release checks.
 
-If the source is already synchronized but the upstream project has published a new stable release tag that does not yet exist in this fork, the sync workflow dispatches `windows-build.yml` manually so the matching Windows release is created.
+If the latest official upstream release does not yet exist in this fork, the workflow synchronizes the source as required and dispatches `windows-build.yml`. The Windows build reads the official upstream release number, compiles the Windows x64 / .NET 10 fork, and creates the matching fork release.
 
 ## Automatic updates inside Jackett
 
@@ -240,10 +253,13 @@ The application updater has been customized to query this fork's GitHub Releases
 Expected update flow:
 
 ```text
-Jackett/Jackett upstream
+Jackett/Jackett stable release
         |
         v
-Daily upstream synchronization
+Release check every 6 hours
+        |
+        v
+Synchronize fork source when required
         |
         v
 DigitalfoxPT/Jackett master
@@ -255,12 +271,16 @@ Windows x64 / .NET 10 build and tests
 DigitalfoxPT/Jackett GitHub Release
         |
         v
-Installed Jackett checks this fork for updates
+Installed Jackett checks this fork every 6 hours
 ```
 
-The updater already performs periodic update checks using Jackett's normal update mechanism. The custom requirement is that the GitHub release API points at `DigitalfoxPT/Jackett`.
+The installed application performs its first automatic update check approximately **1 hour after startup**. After that, it checks this fork every **6 hours**.
 
-When working on updater code, confirm that it has **not reverted to `Jackett/Jackett/releases`**.
+Therefore, ignoring build time and GitHub scheduling delays, a newly published official release should normally reach an already-running installation within **about 12 hours in the worst alignment case**, instead of the previous theoretical 48-hour window.
+
+The custom requirement is that the GitHub release API remains pointed at `DigitalfoxPT/Jackett`.
+
+When working on updater code, confirm that it has **not reverted to `Jackett/Jackett/releases`** and that `Jackett.Binaries.Windows.zip` remains the Windows updater asset.
 
 ## Windows Service behavior
 
@@ -354,9 +374,9 @@ A future maintainer should inspect these files first when debugging fork-specifi
 | File | Purpose |
 |---|---|
 | `.github/workflows/windows-build.yml` | Windows x64 build, tests, packaging and release creation |
-| `.github/workflows/upstream-sync.yml` | Daily merge from official Jackett and validation |
+| `.github/workflows/upstream-sync.yml` | 6-hour stable-release checks plus daily upstream source synchronization and validation |
 | `Installer.iss` | Windows x64 installer and Windows Service setup |
-| `src/Jackett.Common/Services/UpdateService.cs` | Automatic update logic and fork release source |
+| `src/Jackett.Common/Services/UpdateService.cs` | Automatic 6-hour update checks and fork release source |
 | `src/Jackett.Common/Utils/Variants.cs` | Artifact/platform naming used by updater |
 | `src/Jackett.Server/Jackett.Server.csproj` | .NET 10 Windows server build |
 | `src/Jackett.Updater/Jackett.Updater.csproj` | .NET 10 Windows updater build |
@@ -375,14 +395,15 @@ Before changing this repository:
 4. Compare the fork against `Jackett/Jackett` to understand whether a failure came from upstream or from a custom fork change.
 5. Preserve the release/versioning contract.
 6. Keep the updater pointed at this fork.
-7. Keep the build Windows x64 only.
-8. Keep .NET 10 unless the owner explicitly requests a later supported .NET version.
-9. Keep the package self-contained.
-10. Do not restore `JackettTray.exe` to the shipped package.
-11. Do not push an upstream merge that fails compilation or tests.
-12. Prefer a small, targeted fix over a broad rewrite.
-13. After a fix, monitor the resulting GitHub Actions run and inspect job logs if it fails.
-14. A green compile alone is not enough. Unit tests, packaging and release creation must also succeed.
+7. Preserve the 6-hour stable-release detection cadence and the daily full source sync unless the owner requests another policy.
+8. Keep the build Windows x64 only.
+9. Keep .NET 10 unless the owner explicitly requests a later supported .NET version.
+10. Keep the package self-contained.
+11. Do not restore `JackettTray.exe` to the shipped package.
+12. Do not push an upstream merge that fails compilation or tests.
+13. Prefer a small, targeted fix over a broad rewrite.
+14. After a fix, monitor the resulting GitHub Actions run and inspect job logs if it fails.
+15. A green compile alone is not enough. Unit tests, packaging and release creation must also succeed.
 
 ### If a GitHub Action fails
 
