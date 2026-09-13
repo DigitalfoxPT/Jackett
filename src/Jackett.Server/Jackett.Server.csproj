@@ -2,71 +2,42 @@
 
   <PropertyGroup>
     <PackageId>$(MSBuildProjectName)</PackageId>
-    <TargetFrameworks>net9.0;net471</TargetFrameworks>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PlatformTarget>x64</PlatformTarget>
+    <SelfContained>true</SelfContained>
     <ApplicationIcon>jackett.ico</ApplicationIcon>
     <OutputType>Exe</OutputType>
+    <AssemblyName>JackettConsole</AssemblyName>
     <NoWarn></NoWarn>
     <ServerGarbageCollection>false</ServerGarbageCollection>
-    <DefineConstants Condition="'$(RuntimeIdentifier)' == 'linux-musl-x64' or '$(RuntimeIdentifier)' == 'linux-musl-arm' or '$(RuntimeIdentifier)' == 'linux-musl-arm64'">ISLINUXMUSL</DefineConstants>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net9.0|AnyCPU'">
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <WarningsAsErrors />
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Debug|net9.0|AnyCPU'">
+  <PropertyGroup Condition="'$(Configuration)'=='Debug'">
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <WarningsAsErrors />
   </PropertyGroup>
-
-  <Choose>
-    <When Condition="'$(TargetFramework)' != 'net471' and $(RuntimeIdentifier.Contains('win')) == 'false'">
-      <PropertyGroup>
-        <AssemblyName>jackett</AssemblyName>
-      </PropertyGroup>
-    </When>
-    <Otherwise>
-      <PropertyGroup>
-        <AssemblyName>JackettConsole</AssemblyName>
-      </PropertyGroup>
-    </Otherwise>
-  </Choose>
-
-  <!-- Conditionally obtain references for the .NET 9.0 target -->
-  <ItemGroup Condition=" '$(TargetFramework)' == 'net9.0' ">
-    <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="9.0.19" />
-    <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.19" />
-    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="9.0.19" />
-  </ItemGroup>
-
-  <!-- Conditionally obtain references for the .NET471 target -->
-  <ItemGroup Condition=" '$(TargetFramework)' == 'net471' ">
-    <PackageReference Include="Microsoft.AspNetCore" Version="2.3.12" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication" Version="2.3.12" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.Cookies" Version="2.3.12" />
-    <PackageReference Include="Microsoft.AspNetCore.Mvc" Version="2.3.12" />
-    <PackageReference Include="Microsoft.AspNetCore.ResponseCompression" Version="2.3.12" />
-    <PackageReference Include="Microsoft.AspNetCore.Rewrite" Version="2.3.12" />
-    <PackageReference Include="Microsoft.AspNetCore.StaticFiles" Version="2.3.12" />
-    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" />
-  </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Autofac" Version="8.0.0" />
-    <PackageReference Include="Autofac.Extensions.DependencyInjection" Version="9.0.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.NewtonsoftJson" Version="10.0.12" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.12" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.12" />
+    <PackageReference Include="Autofac" Version="9.3.2" />
+    <PackageReference Include="Autofac.Extensions.DependencyInjection" Version="11.0.2" />
     <PackageReference Include="CommandLineParser" Version="2.9.1" />
-    <PackageReference Include="Mono.Posix" Version="7.1.0-final.1.21458.1" />
-    <PackageReference Include="NLog" Version="5.5.1" />
-    <PackageReference Include="NLog.Web.AspNetCore" Version="5.5.0" />
-    <PackageReference Include="System.ServiceProcess.ServiceController" Version="9.0.19" />
-    <PackageReference Include="System.Text.Encoding.CodePages" Version="9.0.19" />
+    <PackageReference Include="NLog" Version="6.2.0" />
+    <PackageReference Include="NLog.Web.AspNetCore" Version="6.2.0" />
+    <PackageReference Include="System.ServiceProcess.ServiceController" Version="10.0.12" />
+    <PackageReference Include="System.Text.Encoding.CodePages" Version="10.0.12" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Jackett.Common\Jackett.Common.csproj">
-      <Properties Condition="$(DefineConstants.Contains('ISLINUXMUSL')) == 'true'">DefineConstants=ISLINUXMUSL</Properties>
-    </ProjectReference>
+    <ProjectReference Include="..\Jackett.Common\Jackett.Common.csproj" />
   </ItemGroup>
 
   <ItemGroup>
