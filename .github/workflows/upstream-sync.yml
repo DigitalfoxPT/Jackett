@@ -2,7 +2,10 @@ name: Daily Upstream Sync
 
 on:
   schedule:
-    - cron: '17 3 * * *'
+    # Full source synchronization once per day.
+    - cron: '17 0 * * *'
+    # Lightweight release checks every six hours between full syncs.
+    - cron: '17 6,12,18 * * *'
   workflow_dispatch:
 
 permissions:
@@ -10,28 +13,64 @@ permissions:
   issues: write
   actions: write
 
-env:
-  DOTNET_VERSION: 10.0.x
-
 jobs:
   sync:
     name: Merge Jackett upstream
     runs-on: windows-2025-vs2026
 
     steps:
+      - name: Check latest upstream release
+        id: release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          SCHEDULE: ${{ github.event.schedule }}
+          FORK_REPOSITORY: ${{ github.repository }}
+        run: |
+          $tag = gh api repos/Jackett/Jackett/releases/latest --jq .tag_name
+          if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($tag)) {
+            throw "Unable to determine the latest Jackett upstream release."
+          }
+
+          $tag = $tag.Trim()
+          if ($tag -notmatch '^v\d+\.\d+\.\d+$') {
+            throw "Unexpected upstream release tag format: $tag"
+          }
+
+          gh release view $tag --repo $env:FORK_REPOSITORY *> $null
+          $releaseMissing = $LASTEXITCODE -ne 0
+
+          $fullSync = $env:EVENT_NAME -eq 'workflow_dispatch' -or $env:SCHEDULE -eq '17 0 * * *'
+          $needsSync = $fullSync -or $releaseMissing
+
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+          "missing=$($releaseMissing.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+          "full_sync=$($fullSync.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+          "needs_sync=$($needsSync.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+
+          if ($releaseMissing) {
+            Write-Host "Upstream release $tag is not present in the fork. Source synchronization and build are required."
+          }
+          elseif ($fullSync) {
+            Write-Host "Fork already has release $tag. Performing the scheduled daily source synchronization."
+          }
+          else {
+            Write-Host "Fork already has release $tag. Lightweight release check complete; no source synchronization is required."
+          }
+
+          exit 0
+
       - name: Checkout fork
+        if: steps.release.outputs.needs_sync == 'true'
         uses: actions/checkout@v7
         with:
           ref: master
           fetch-depth: 0
 
-      - name: Setup .NET 10
-        uses: actions/setup-dotnet@v6
-        with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
-
       - name: Fetch and merge upstream
         id: merge
+        if: steps.release.outputs.needs_sync == 'true'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -44,7 +83,7 @@ jobs:
 
           $count = [int](git rev-list HEAD..upstream/master --count)
           if ($count -eq 0) {
-            Write-Host "Fork is already synchronized with upstream."
+            Write-Host "Fork source is already synchronized with upstream."
             "changed=false" >> $env:GITHUB_OUTPUT
             exit 0
           }
@@ -61,6 +100,12 @@ jobs:
           }
 
           "changed=true" >> $env:GITHUB_OUTPUT
+
+      - name: Setup .NET 10
+        if: steps.merge.outputs.changed == 'true'
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
 
       - name: Validate synchronized source
         id: validate
@@ -94,25 +139,14 @@ jobs:
         shell: pwsh
         run: git push origin master
 
-      - name: Ensure latest upstream release is built
-        if: steps.merge.outputs.changed == 'false' || (steps.merge.outputs.changed == 'true' && steps.validate.outcome == 'success')
+      - name: Build missing upstream release
+        if: steps.release.outputs.missing == 'true' && (steps.merge.outputs.changed == 'false' || steps.validate.outcome == 'success')
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = gh api repos/Jackett/Jackett/releases/latest --jq .tag_name
-          if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($tag)) {
-            throw "Unable to determine the latest Jackett upstream release."
-          }
-
-          $tag = $tag.Trim()
-          gh release view $tag *> $null
-          if ($LASTEXITCODE -eq 0) {
-            Write-Host "Fork already has release $tag."
-            exit 0
-          }
-
-          Write-Host "Upstream release $tag is not present in the fork. Triggering Windows build."
+          $tag = '${{ steps.release.outputs.tag }}'
+          Write-Host "Triggering Windows build for upstream release $tag."
           gh workflow run windows-build.yml --ref master
           if ($LASTEXITCODE -ne 0) {
             throw "Failed to dispatch Windows build for $tag."
