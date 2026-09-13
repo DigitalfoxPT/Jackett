@@ -95,6 +95,7 @@ namespace Jackett.Server
 
             services.AddDataProtection()
                         .PersistKeysToFileSystem(dataProtectionFolder)
+                        .ProtectKeysWithDpapi(protectToLocalMachine: true)
                         .SetApplicationName("Jackett");
 
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
