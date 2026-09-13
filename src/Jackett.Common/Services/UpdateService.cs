@@ -67,7 +67,7 @@ namespace Jackett.Common.Services
                 locker.WaitOne((int)TimeSpan.FromHours(delayHours).TotalMilliseconds);
                 locker.Reset();
                 await CheckForUpdates();
-                delayHours = 24;
+                delayHours = 6;
             }
         }
 
