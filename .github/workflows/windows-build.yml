@@ -127,7 +127,7 @@ jobs:
             build/Jackett.Installer.Windows.exe
 
       - name: Recreate GitHub release
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/master'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
