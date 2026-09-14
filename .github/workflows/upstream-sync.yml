@@ -1,6 +1,11 @@
 name: Daily Upstream Sync
 
 on:
+  push:
+    branches:
+      - master
+    paths:
+      - '.github/workflows/upstream-sync.yml'
   schedule:
     # Full source synchronization once per day.
     - cron: '17 0 * * *'
@@ -17,6 +22,9 @@ jobs:
   sync:
     name: Merge Jackett upstream
     runs-on: windows-2025-vs2026
+    env:
+      # Keep GitHub CLI operations on this fork after adding the upstream remote.
+      GH_REPO: ${{ github.repository }}
 
     steps:
       - name: Check latest upstream release
@@ -41,7 +49,7 @@ jobs:
           gh release view $tag --repo $env:FORK_REPOSITORY *> $null
           $releaseMissing = $LASTEXITCODE -ne 0
 
-          $fullSync = $env:EVENT_NAME -eq 'workflow_dispatch' -or $env:SCHEDULE -eq '17 0 * * *'
+          $fullSync = $env:EVENT_NAME -in @('workflow_dispatch', 'push') -or $env:SCHEDULE -eq '17 0 * * *'
           $needsSync = $fullSync -or $releaseMissing
 
           "tag=$tag" >> $env:GITHUB_OUTPUT
@@ -147,7 +155,7 @@ jobs:
         run: |
           $tag = '${{ steps.release.outputs.tag }}'
           Write-Host "Triggering Windows build for upstream release $tag."
-          gh workflow run windows-build.yml --ref master
+          gh workflow run windows-build.yml --repo $env:GH_REPO --ref master
           if ($LASTEXITCODE -ne 0) {
             throw "Failed to dispatch Windows build for $tag."
           }

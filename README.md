@@ -208,7 +208,7 @@ Current schedule:
 18:17 UTC - lightweight release check
 ```
 
-It can also be launched manually with `workflow_dispatch`; a manual run performs a full source synchronization.
+It can also be launched manually with `workflow_dispatch`. Changes to `.github/workflows/upstream-sync.yml` pushed to `master` also run the workflow so maintenance changes are validated immediately. Both manual runs and these workflow-file pushes perform a full source synchronization.
 
 The workflow first queries the latest stable `Jackett/Jackett` release. If the matching release already exists in this fork and the run is one of the 6-hour lightweight checks, the workflow stops without checkout, .NET setup, compilation or tests.
 
@@ -225,6 +225,8 @@ A full daily sync, or any 6-hour check that detects a missing upstream release, 
 9. if the latest stable upstream release is missing from this fork, dispatches `windows-build.yml` explicitly.
 
 The explicit workflow dispatch after synchronization is important. Do not rely on a push made with the default `GITHUB_TOKEN` to start another workflow.
+
+The sync job sets `GH_REPO` to `${{ github.repository }}` and dispatches the build with `--repo $env:GH_REPO`. Keep this explicit fork targeting: after adding the `upstream` remote, GitHub CLI can otherwise select `Jackett/Jackett`, where `windows-build.yml` does not exist (HTTP 404). The same job-level setting keeps sync issue reports in this fork.
 
 If the merge fails, it aborts the merge and creates a GitHub issue titled:
 
