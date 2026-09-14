@@ -117,6 +117,11 @@ jobs:
 
           & $iscc "Installer.iss" "/Obuild" "/DMyAppVersion=$env:BUILD_VERSION" "/DMySourceFolder=$pwd\build\Jackett" "/DMyOutputFilename=Jackett.Installer.Windows"
 
+      - name: Test installed service and ZIP update
+        timeout-minutes: 8
+        shell: pwsh
+        run: ./.github/workflows/scripts/test-windows-service-update.ps1
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7
         with:
