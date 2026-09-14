@@ -62,7 +62,7 @@ namespace Jackett.Server
                     logger.Info("Initiating Jackett service start");
                     serviceConfigService.Start();
                 }
-                Environment.Exit(1);
+                Environment.Exit(0);
             }
 
             // Stop Service

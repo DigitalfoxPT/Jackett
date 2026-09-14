@@ -19,11 +19,12 @@ function Wait-Dashboard {
 }
 
 function Assert-Service {
+    (Get-Service Jackett).WaitForStatus('Running', [TimeSpan]::FromSeconds(60))
+    Wait-Dashboard
     $service = Get-CimInstance Win32_Service -Filter "Name='Jackett'"
     if ($null -eq $service -or $service.StartMode -ne 'Auto' -or $service.State -ne 'Running') {
         throw "Jackett service is not running with automatic startup: $($service | ConvertTo-Json -Compress)"
     }
-    Wait-Dashboard
 }
 
 if (Get-Service Jackett -ErrorAction SilentlyContinue) {

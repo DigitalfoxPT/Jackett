@@ -38,7 +38,7 @@ namespace Jackett.Server
         public IConfiguration Configuration { get; }
 
         // This method gets called by the runtime. Use this method to add services to the container.
-        public IServiceProvider ConfigureServices(IServiceCollection services)
+        public void ConfigureServices(IServiceCollection services)
         {
             services.AddResponseCompression()
                     .AddCors(
@@ -98,12 +98,15 @@ namespace Jackett.Server
                         .SetApplicationName("Jackett");
 
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        }
 
-            var builder = new ContainerBuilder();
+        public void ConfigureContainer(ContainerBuilder builder)
+        {
+            var runtimeSettings = new RuntimeSettings();
+            Configuration.GetSection("RuntimeSettings").Bind(runtimeSettings);
 
             Helper.SetupLogging(builder);
 
-            builder.Populate(services);
             builder.RegisterModule(new JackettModule(runtimeSettings));
             builder.RegisterType<SecurityService>().As<ISecurityService>().SingleInstance();
             builder.RegisterType<ServerService>().As<IServerService>().SingleInstance();
@@ -111,15 +114,6 @@ namespace Jackett.Server
             builder.RegisterType<CacheService>().As<ICacheService>().SingleInstance();
             builder.RegisterType<ServiceConfigService>().As<IServiceConfigService>().SingleInstance();
             builder.RegisterType<FilePermissionService>().As<IFilePermissionService>().SingleInstance();
-
-            var container = builder.Build();
-            Helper.ApplicationContainer = container;
-
-            Helper.Logger.Debug("Autofac container built");
-
-            Helper.Initialize();
-
-            return new AutofacServiceProvider(container);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -163,6 +157,10 @@ namespace Jackett.Server
 #else
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env, IHostApplicationLifetime applicationLifetime)
         {
+            Helper.ApplicationContainer = app.ApplicationServices.GetAutofacRoot();
+            Helper.Logger.Debug("Autofac container built");
+            Helper.Initialize();
+
             applicationLifetime.ApplicationStarted.Register(OnStarted);
             applicationLifetime.ApplicationStopped.Register(OnStopped);
             Helper.applicationLifetime = applicationLifetime;

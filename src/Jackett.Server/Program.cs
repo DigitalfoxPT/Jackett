@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using Autofac.Extensions.DependencyInjection;
 using CommandLine;
 using CommandLine.Text;
 using Jackett.Common.Models.Config;
@@ -168,6 +169,7 @@ namespace Jackett.Server
 
         public static IHostBuilder CreateWebHostBuilder(string[] args, string[] urls, string contentRoot) =>
             Host.CreateDefaultBuilder(args)
+                .UseServiceProviderFactory(new AutofacServiceProviderFactory())
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder
