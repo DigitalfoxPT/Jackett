@@ -97,7 +97,9 @@ jobs:
           }
 
           Write-Host "$count upstream commit(s) to merge."
-          git merge upstream/master --no-edit -X ours
+          # Keep the merge pending so upstream cannot replace this fork's workflows.
+          # GITHUB_TOKEN cannot push workflow changes, even with contents: write.
+          git merge upstream/master --no-commit --no-ff -X ours
           if ($LASTEXITCODE -ne 0) {
             git merge --abort
             $existing = gh issue list --state open --search 'Daily upstream sync conflict in:title' --json number --jq '.[0].number'
@@ -105,6 +107,17 @@ jobs:
               gh issue create --title "Daily upstream sync conflict" --body "The automated merge from Jackett/Jackett master failed. Manual conflict resolution is required before automatic synchronization can continue."
             }
             throw "Upstream merge failed."
+          }
+
+          git restore --source=HEAD --staged --worktree -- .github/workflows
+          if ($LASTEXITCODE -ne 0) {
+            git merge --abort
+            throw "Unable to preserve fork workflows."
+          }
+
+          git commit --no-edit
+          if ($LASTEXITCODE -ne 0) {
+            throw "Unable to commit upstream merge."
           }
 
           "changed=true" >> $env:GITHUB_OUTPUT
