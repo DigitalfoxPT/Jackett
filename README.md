@@ -8,7 +8,7 @@ This repository is a **personal Windows-only fork of [Jackett/Jackett](https://g
 
 The purpose of this fork is not to become an independent rewrite of Jackett. It keeps the upstream Jackett code and indexer ecosystem while applying a small, controlled set of Windows-specific customizations and automatically synchronizing with upstream.
 
-> **Important maintenance note:** This README is intentionally written as both user documentation and a maintenance contract. A future maintainer, including ChatGPT, should read this section before changing the repository.
+> **Important maintenance note:** This README is intentionally written as both user documentation and a maintenance contract. A future maintainer, should read this section before changing the repository.
 
 ## Fork goals
 
