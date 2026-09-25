@@ -125,6 +125,7 @@ jobs:
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7
         with:
+          retention-days: 7
           name: Jackett-Windows-x64-${{ steps.version.outputs.version }}
           if-no-files-found: error
           path: |
