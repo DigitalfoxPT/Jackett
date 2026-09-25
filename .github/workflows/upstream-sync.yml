@@ -9,8 +9,8 @@ on:
   schedule:
     # Full source synchronization once per day.
     - cron: '17 0 * * *'
-    # Lightweight release checks every six hours between full syncs.
-    - cron: '17 6,12,18 * * *'
+    # Lightweight release checks every eight hours between full syncs.
+    - cron: '17 8,16 * * *'
   workflow_dispatch:
 
 permissions:
