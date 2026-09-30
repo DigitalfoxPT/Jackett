@@ -88,6 +88,9 @@ jobs:
 
           git remote add upstream https://github.com/Jackett/Jackett.git
           git fetch upstream master --tags
+          if ($LASTEXITCODE -ne 0) {
+            throw "Unable to fetch upstream."
+          }
 
           $count = [int](git rev-list HEAD..upstream/master --count)
           if ($count -eq 0) {
@@ -100,19 +103,27 @@ jobs:
           # Keep the merge pending so upstream cannot replace this fork's workflows.
           # GITHUB_TOKEN cannot push workflow changes, even with contents: write.
           git merge upstream/master --no-commit --no-ff -X ours
-          if ($LASTEXITCODE -ne 0) {
-            git merge --abort
-            $existing = gh issue list --state open --search 'Daily upstream sync conflict in:title' --json number --jq '.[0].number'
-            if (-not $existing) {
-              gh issue create --title "Daily upstream sync conflict" --body "The automated merge from Jackett/Jackett master failed. Manual conflict resolution is required before automatic synchronization can continue."
-            }
-            throw "Upstream merge failed."
+          if ($LASTEXITCODE -ne 0 -and -not (Test-Path (git rev-parse --git-path MERGE_HEAD))) {
+            throw "Upstream merge failed before a pending merge was created."
           }
 
+          # Restore workflows before checking conflicts: upstream may modify a
+          # workflow intentionally deleted in the fork, which -X ours cannot resolve.
+          git rm -r -f -- .github/workflows
+          if ($LASTEXITCODE -ne 0) {
+            git merge --abort
+            throw "Unable to clear merged workflows."
+          }
           git restore --source=HEAD --staged --worktree -- .github/workflows
           if ($LASTEXITCODE -ne 0) {
             git merge --abort
             throw "Unable to preserve fork workflows."
+          }
+
+          $conflicts = @(git diff --name-only --diff-filter=U)
+          if ($LASTEXITCODE -ne 0 -or $conflicts.Count -gt 0) {
+            git merge --abort
+            throw "Upstream merge has unresolved source conflicts: $($conflicts -join ', '). Review this workflow run before the next synchronization."
           }
 
           git commit --no-edit
