@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<title>Jackett frontend regression checks</title>
+<link rel="stylesheet" href="../../src/Jackett.Common/Content/bootstrap/bootstrap.min.css">
+<script src="../../src/Jackett.Common/Content/libs/jquery.min.js"></script>
+<script src="../../src/Jackett.Common/Content/libs/jquery.dataTables.min.js"></script>
+<script src="../../src/Jackett.Common/Content/libs/handlebars.min.js"></script>
+<script src="../../src/Jackett.Common/Content/libs/moment.min.js"></script>
+<script src="../../src/Jackett.Common/Content/libs/filesize.min.js"></script>
+<script src="../../src/Jackett.Common/Content/bootstrap/bootstrap.min.js"></script>
+<script src="../../src/Jackett.Common/Content/libs/bootstrap-notify.js"></script>
+<script src="../../src/Jackett.Common/Content/libs/handlebarsextend.js"></script>
+<script src="../../src/Jackett.Common/Content/libs/handlebarsmoment.js"></script>
+<h1>Jackett frontend regression checks</h1>
+<p id="result">Running...</p>
+<ol id="checks"></ol>
+<div id="fixtures"></div>
+<script>
+(async function () {
+    'use strict';
+    var passed = 0;
+    var failed = 0;
+    async function check(name, run) {
+        var item = document.createElement('li');
+        try { await run(); passed++; item.textContent = 'PASS: ' + name; }
+        catch (error) { failed++; item.textContent = 'FAIL: ' + name + ': ' + error.message; }
+        document.getElementById('checks').appendChild(item);
+    }
+    function assert(value, message) { if (!value) throw new Error(message); }
+    await check('Expected library versions and Bootstrap plugins', function () {
+        assert($.fn.jquery === '3.7.1', 'jQuery');
+        assert($.fn.dataTable.version === '1.13.11', 'DataTables');
+        assert(Handlebars.VERSION === '4.7.10', 'Handlebars');
+        assert(moment.version === '2.31.0', 'Moment');
+        assert($.fn.tooltip.Constructor.VERSION === '3.4.1', 'Bootstrap');
+        assert(typeof $.notify === 'function', 'Notify');
+    });
+    await check('Handlebars escaping and Jackett helpers', function () {
+        var template = Handlebars.compile('{{#ifCond mode "ok"}}{{value}}{{/ifCond}} {{jacketSize size}} {{dateFormat date format="YYYY-MM-DD"}}');
+        var result = template({ mode: 'ok', value: '<script>', size: 1024, date: '2026-10-15' });
+        assert(result.indexOf('&lt;script&gt;') >= 0, 'HTML not escaped');
+        assert(result.indexOf('2026-10-15') >= 0, 'Date helper failed');
+        assert(result.indexOf('kB') >= 0 || result.indexOf('KB') >= 0, 'Size helper failed');
+    });
+    await check('DataTables renders, sorts and filters', function () {
+        var table = $('<table><thead><tr><th>Name</th></tr></thead><tbody><tr><td>Beta</td></tr><tr><td>Alpha</td></tr></tbody></table>').appendTo('#fixtures');
+        var api = table.DataTable();
+        assert(table.find('tbody tr:first td').text() === 'Alpha', 'Sorting failed');
+        api.search('Beta').draw();
+        assert(api.rows({ filter: 'applied' }).count() === 1, 'Search failed');
+        api.destroy(); table.remove();
+    });
+    await check('DataTables rejects prototype writes', function () {
+        try { $.fn.dataTable.util.set('__proto__.jackettPolluted')({}, true); } catch (_) { }
+        assert(({}).jackettPolluted === undefined, 'Object prototype changed');
+    });
+    await check('Bootstrap loading label is escaped (CVE-2024-6485)', async function () {
+        var text = '<img src=x onerror="window.jackettXss=true">';
+        var button = $('<button>Start</button>').appendTo('#fixtures').data('loadingText', text);
+        button.button('loading');
+        await new Promise(function (resolve) { setTimeout(resolve, 20); });
+        assert(button.find('img').length === 0, 'Loading HTML was interpreted');
+        assert(button.text() === text, 'Loading label was lost');
+        assert(!window.jackettXss, 'Payload executed');
+        button.remove();
+    });
+    await check('Bootstrap blocks non-carousel targets (CVE-2024-6484)', function () {
+        var link = $('<a data-slide="next" href="#jackett-not-carousel">Next</a>').appendTo('#fixtures');
+        $('<div id="jackett-not-carousel"></div>').appendTo('#fixtures');
+        var event = $.Event('click'); link.trigger(event);
+        assert(event.isDefaultPrevented(), 'Unsafe navigation was not prevented');
+        link.remove(); $('#jackett-not-carousel').remove();
+    });
+    await check('Tooltip sanitizer removes unsafe markup and preserves posters', function () {
+        var button = $('<button>Details</button>').appendTo('#fixtures');
+        button.tooltip({ animation: false, html: true, title: '<img src="/poster.jpg" onerror="alert(1)"><a href="javascript:alert(1)">bad</a><script>alert(1)</' + 'script>', placement: 'bottom' });
+        button.tooltip('show');
+        var tip = button.data('bs.tooltip').tip();
+        assert(tip.find('img').length === 1, 'Poster removed');
+        assert(tip.find('[onerror],script,[href^="javascript:"]').length === 0, 'Unsafe markup survived');
+        button.tooltip('destroy'); button.remove();
+    });
+    await check('Tooltip sanitizer handles a clobbered DOM implementation (CVE-2025-1647)', function () {
+        var original = Object.getOwnPropertyDescriptor(document, 'implementation');
+        try {
+            Object.defineProperty(document, 'implementation', { configurable: true, value: {} });
+            var button = $('<button>Clobber test</button>').appendTo('#fixtures');
+            button.tooltip({ animation: false, html: true, title: '<b>Safe</b><img src=x onerror="alert(1)">' }).tooltip('show');
+            assert(button.data('bs.tooltip').tip().find('[onerror]').length === 0, 'Sanitizer failed');
+            button.tooltip('destroy'); button.remove();
+        } finally {
+            if (original) Object.defineProperty(document, 'implementation', original);
+            else delete document.implementation;
+        }
+    });
+    document.getElementById('result').textContent = passed + ' passed, ' + failed + ' failed';
+    document.title = failed ? 'FAIL: Jackett frontend checks' : 'PASS: Jackett frontend checks';
+})();
+</script>
+</html>

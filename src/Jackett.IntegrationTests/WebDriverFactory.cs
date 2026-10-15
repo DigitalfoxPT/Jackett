@@ -40,10 +40,8 @@ namespace Jackett.IntegrationTests
                     //
                     // See https://docs.microsoft.com/en-us/azure/devops/pipelines/test/continuous-test-selenium
                     //
-                    // Environment.CurrentDirectory is where the Selenium.Webdriver.ChromeDriver NuGet package will place the
-                    // version of the Chrome WebDriver that it comes with. We fall back to this so that if a developer working on
-                    // the project hasn't separately installed ChromeDriver, the test will still be able to run on their machine.
-                    var chromeDriverDirectory = Environment.GetEnvironmentVariable("CHROMEWEBDRIVER") ?? Environment.CurrentDirectory;
+                    // Use Selenium Manager when a matching driver directory is not provided by CI.
+                    var chromeDriverDirectory = Environment.GetEnvironmentVariable("CHROMEWEBDRIVER");
 
                     // The tests will work fine in non-headless mode; we recommend using --headless for performance and
                     // because it makes it easier to run the tests in non-graphical environments (eg, most Docker containers)
@@ -51,7 +49,9 @@ namespace Jackett.IntegrationTests
                     chromeOptions.AddArgument("--headless");
                     chromeOptions.AddArgument($"--window-size={windowWidth},{windowHeight}");
 
-                    return new ChromeDriver(chromeDriverDirectory, chromeOptions);
+                    return string.IsNullOrWhiteSpace(chromeDriverDirectory)
+                        ? new ChromeDriver(chromeOptions)
+                        : new ChromeDriver(chromeDriverDirectory, chromeOptions);
 
                 default:
                     throw new ArgumentException($"Unknown browser type '{browserEnvVar}' specified in '{BROWSER_ENVIRONMENT_VARIABLE}' environment variable");

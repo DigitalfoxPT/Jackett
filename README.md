@@ -349,6 +349,16 @@ This fork moved the backend to .NET 10 and modernized selected NuGet dependencie
 
 Future maintainers may update stable dependencies, but should avoid mass upgrades without testing.
 
+The dashboard currently uses jQuery 3.7.1, DataTables 1.13.11, Handlebars 4.7.10,
+Moment 2.31.0, filesize 3.6.1 and Bootstrap Notify 3.1.3. Bootstrap is 3.4.1 with
+Debian security backports for CVE-2024-6484, CVE-2024-6485 and CVE-2025-1647;
+do not overwrite the patched JavaScript with the unpatched upstream 3.4.1 bundle.
+See [Bootstrap maintenance notes](src/Jackett.Common/Content/bootstrap/README.md)
+and [frontend regression checks](.github/tests/frontend-security.html).
+
+The integration-test project uses Selenium Manager when `CHROMEWEBDRIVER` is not
+provided, instead of shipping the obsolete ChromeDriver 85 NuGet package.
+
 In particular, frontend major upgrades such as these can require substantial code changes:
 
 ```text
