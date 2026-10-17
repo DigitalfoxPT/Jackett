@@ -8,15 +8,19 @@ on:
       - '.github/workflows/upstream-sync.yml'
   schedule:
     # Full source synchronization once per day.
-    - cron: '17 0 * * *'
+    - cron: '37 0 * * *'
     # Lightweight release checks every eight hours between full syncs.
-    - cron: '17 8,16 * * *'
+    - cron: '37 8,16 * * *'
   workflow_dispatch:
 
 permissions:
   contents: write
   issues: write
   actions: write
+
+concurrency:
+  group: upstream-sync-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   sync:
@@ -49,7 +53,7 @@ jobs:
           gh release view $tag --repo $env:FORK_REPOSITORY *> $null
           $releaseMissing = $LASTEXITCODE -ne 0
 
-          $fullSync = $env:EVENT_NAME -in @('workflow_dispatch', 'push') -or $env:SCHEDULE -eq '17 0 * * *'
+          $fullSync = $env:EVENT_NAME -in @('workflow_dispatch', 'push') -or $env:SCHEDULE -eq '37 0 * * *'
           $needsSync = $fullSync -or $releaseMissing
 
           "tag=$tag" >> $env:GITHUB_OUTPUT
@@ -171,8 +175,10 @@ jobs:
         shell: pwsh
         run: git push origin master
 
-      - name: Build missing upstream release
-        if: steps.release.outputs.missing == 'true' && (steps.merge.outputs.changed == 'false' || steps.validate.outcome == 'success')
+      # Pushes made with GITHUB_TOKEN do not trigger push workflows. Explicitly
+      # dispatch a build after every validated merge, even if the release exists.
+      - name: Build synchronized source or missing upstream release
+        if: (steps.merge.outputs.changed == 'true' && steps.validate.outcome == 'success') || (steps.release.outputs.missing == 'true' && steps.merge.outputs.changed == 'false')
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
