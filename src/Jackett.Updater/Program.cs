@@ -697,6 +697,8 @@ namespace Jackett.Updater
                 "Definitions/pt99.yml",
                 "Definitions/ptcdy.yml",
                 "Definitions/ptchina.yml",
+                "Definitions/ptlao.yml",
+                "Definitions/ptlao-api.yml",
                 "Definitions/ptlsp.yml",
                 "Definitions/ptmsg.yml",
                 "Definitions/ptorrent.yml", // renamed to pornxlab
@@ -928,6 +930,7 @@ namespace Jackett.Updater
                 "Definitions/wdt.yml",
                 "Definitions/witchhunter.yml",
                 "Definitions/woot.yml",
+                "Definitions/world-of-tomorrow.yml", // switch to *-API #16903
                 "Definitions/worldofp2p.yml",
                 "Definitions/worldwidetorrents.yml",
                 "Definitions/wukong.yml",
