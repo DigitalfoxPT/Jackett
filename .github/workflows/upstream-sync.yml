@@ -7,10 +7,7 @@ on:
     paths:
       - '.github/workflows/upstream-sync.yml'
   schedule:
-    # Full source synchronization once per day.
     - cron: '37 0 * * *'
-    # Lightweight release checks every eight hours between full syncs.
-    - cron: '37 8,16 * * *'
   workflow_dispatch:
 
 permissions:
@@ -36,8 +33,6 @@ jobs:
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
-          EVENT_NAME: ${{ github.event_name }}
-          SCHEDULE: ${{ github.event.schedule }}
           FORK_REPOSITORY: ${{ github.repository }}
         run: |
           $tag = gh api repos/Jackett/Jackett/releases/latest --jq .tag_name
@@ -53,28 +48,19 @@ jobs:
           gh release view $tag --repo $env:FORK_REPOSITORY *> $null
           $releaseMissing = $LASTEXITCODE -ne 0
 
-          $fullSync = $env:EVENT_NAME -in @('workflow_dispatch', 'push') -or $env:SCHEDULE -eq '37 0 * * *'
-          $needsSync = $fullSync -or $releaseMissing
-
           "tag=$tag" >> $env:GITHUB_OUTPUT
           "missing=$($releaseMissing.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
-          "full_sync=$($fullSync.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
-          "needs_sync=$($needsSync.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
 
           if ($releaseMissing) {
             Write-Host "Upstream release $tag is not present in the fork. Source synchronization and build are required."
           }
-          elseif ($fullSync) {
-            Write-Host "Fork already has release $tag. Performing the scheduled daily source synchronization."
-          }
           else {
-            Write-Host "Fork already has release $tag. Lightweight release check complete; no source synchronization is required."
+            Write-Host "Fork already has release $tag. Checking for upstream source changes."
           }
 
           exit 0
 
       - name: Checkout fork
-        if: steps.release.outputs.needs_sync == 'true'
         uses: actions/checkout@v7
         with:
           ref: master
@@ -82,7 +68,6 @@ jobs:
 
       - name: Fetch and merge upstream
         id: merge
-        if: steps.release.outputs.needs_sync == 'true'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
